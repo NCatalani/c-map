@@ -2,14 +2,15 @@
 
 RED=\033[0;31m
 GREEN=\033[0;32m
-NC=\033[0m
+NC=\033[0m # No Color
 
 define print
 	@echo -e "$(1)$(2)$(NC)"
 endef
 
 CC=gcc
-CFLAGS=-I../src
+CFLAGS=-I../src -g
+LIBS=-lssl -lcrypto
 OUT_DIR=../out
 LIB_PATH=$(OUT_DIR)/libmap.a
 
@@ -17,7 +18,7 @@ all: $(OUT_DIR)/test
 
 $(OUT_DIR)/test: $(OUT_DIR)/test.o
 	$(call print,$(GREEN),"Linking test program statically...")
-	$(CC) $(CFLAGS) -o $@ $(OUT_DIR)/test.o $(LIB_PATH)
+	$(CC) $(CFLAGS) -o $@ $(OUT_DIR)/test.o $(LIB_PATH) $(LIBS)
 
 $(OUT_DIR)/test.o: test.c
 	$(call print,$(GREEN),"Compiling test.c...")

@@ -8,11 +8,6 @@
 
 #include "map.h"
 
-#define MAX_TEST_INSERT_KEYS 100
-#define MAX_SEARCH_INDEX 1000000
-#define POOLING_SIZE 100000
-#define SEARCH_KEYS 1
-
 
 /**
  * @brief Realiza o hash SHA256 de uma string
@@ -71,7 +66,7 @@ hashmap_t* hm_create(int capacity) {
 
 /**
  * @brief Criar um novo hashmap com capacidade inicial padrão
- * 
+ *
  * @return hashmap_t* Hashmap
  */
 hashmap_t* hm_create_default(void) {
@@ -81,7 +76,7 @@ hashmap_t* hm_create_default(void) {
 
 /**
  * @brief Retorna o fator de carga do hashmap
- * 
+ *
  * @param hashmap Hashmap
  * @return int Fator de carga
  */
@@ -139,7 +134,7 @@ void hm_free(void **hashmap_p) {
                     }
                     break;
                 default:
-                    break;  
+                    break;
             }
 
             if (current_node->key != NULL) {
@@ -224,7 +219,7 @@ void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, vo
 
 /**
  * @brief Realiza o resize do hashmap por um fator de resize
- * 
+ *
  * @param hashmap Hashmap
  * @param resize_factor Factor de resize
  * @return int Novo tamanho, em caso de sucesso. HM_ERROR, em caso de erro.
@@ -241,7 +236,7 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
     if (hashmap == NULL || resize_factor <= 1.0) {
         return HM_ERROR;
     }
-    
+
     new_size = (size_t)(hashmap->capacity * resize_factor);
 
     aux_hashmap = hm_create(new_size);
@@ -387,63 +382,3 @@ void hm_insert(hashmap_t *hashmap, char *key, node_value_t value_type, void* val
     hashmap->size++;
     //printf("[%s][%s](%d) - hm_insert: [s/c %d/%d]\n", __FILE__, __FUNCTION__, __LINE__, hashmap->size, hashmap->capacity);
 }
-
-
-int main() {
-    int i;
-
-    hashmap_t *hm = NULL;
-    hashmap_t *hm2 = NULL;
-
-    char key_buffer[14] = {'\0'};
-    char value_buffer[16] = {'\0'};
-
-    clock_t outer_end, outer_start, start, end, start_p, end_p;
-    double time_spent = 0.0;
-
-    void* val = NULL;
-
-
-    //printf("[%s][%s](%d) - Criando hashmap root\n", __FILE__, __FUNCTION__, __LINE__);
-
-    outer_start = clock();
-
-    hm = hm_create_default();
-
-    start = clock();
-
-    // Criando chaves STR para inserir no hashmap
-    for(i = 0; i < MAX_TEST_INSERT_KEYS; i++) {
-        sprintf(key_buffer, "key_%d", i);
-        sprintf(value_buffer, "value_%d", i);
-
-        hm_insert(hm, key_buffer, HM_VALUE_STR, value_buffer);
-    }
-    end = clock();
-    time_spent = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-    printf("Time taken to insert: %.2f ms [rate: %.2f ins/s]\n", time_spent, MAX_TEST_INSERT_KEYS/time_spent*1000.0);
-
-    start = clock();
-    while (i > 0 && SEARCH_KEYS) {
-
-        sprintf(key_buffer, "key_%d", rand() % MAX_SEARCH_INDEX);
-        if (hm_search(hm, key_buffer, &val) != HM_SUCCESS) {
-            //printf("[%s][%s](%d) - hm_search: k:[%s] v:[%s]\n", __FILE__, __FUNCTION__, __LINE__, key_buffer, "null");
-        }
-
-        //printf("[%s][%s](%d) - hm_search: k:[%s] v:[%s]\n", __FILE__, __FUNCTION__, __LINE__, key_buffer, (char*)val);
-        i--;
-    }
-    end = clock();
-    time_spent = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-    printf("Time taken to search: %.2f ms [rate: %.2f lkps/s]\n", time_spent, MAX_TEST_INSERT_KEYS/time_spent*1000.0);
-
-    outer_end = clock();
-
-    time_spent = (double)(outer_end - outer_start) / CLOCKS_PER_SEC * 1000.0;
-
-    printf("Time taken in total: %.2f ms\n", time_spent);
-
-    hm_free((void **)&hm);
-}
-

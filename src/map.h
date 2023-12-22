@@ -1,9 +1,9 @@
 #ifndef __MAP_H_
 #define __MAP_H_
 
-#define HM_INITIAL_CAPACITY 200
+#define HM_INITIAL_CAPACITY 10000
 #define HM_LOAD_FACTOR_THRESHOLD 0.75
-#define HM_RESIZE_FACTOR 4.0
+#define HM_RESIZE_FACTOR 2.0
 
 #define HM_SUCCESS -1
 #define HM_ERROR -2
