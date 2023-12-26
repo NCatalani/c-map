@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
+#include <limits.h>
 
 #include <openssl/sha.h>
 
 #include "map.h"
+#include "log.h"
 
 
 /**
@@ -85,9 +87,6 @@ float hm_get_load_factor(hashmap_t *hashmap) {
         return HM_ERROR;
     }
 
-    //printf("[%s][%s](%d) - hm_get_load_factor: %d/%d\n", __FILE__, __FUNCTION__, __LINE__, hashmap->size, hashmap->capacity);
-    //printf("[%s][%s](%d) - hm_get_load_factor: %f\n", __FILE__, __FUNCTION__, __LINE__, (float)hashmap->size/hashmap->capacity);
-
     if (hashmap->capacity == 0) {
         return 0.0;
     }
@@ -158,7 +157,7 @@ void hm_free(void **hashmap_p) {
 
 /**
  * @brief Realiza o hash da string e retorna um
- * id de bucket v�lido
+ * id de bucket válido
  *
  * @param key Chave a ser hasheada
  * @return unsigned int Valor do hash
@@ -174,7 +173,6 @@ int hm_hash(hashmap_t *hashmap, char *key) {
         return HM_ERROR;
     }
 
-    // Transforma os 4 primeiros bytes do hash em um inteiro unsigned
     hash_code = ((unsigned int)hash[0] << 24) |
         ((unsigned int)hash[1] << 16) |
         ((unsigned int)hash[2] << 8)  |
@@ -183,27 +181,33 @@ int hm_hash(hashmap_t *hashmap, char *key) {
     free(hash);
     hash = NULL;
 
+    HM_LOG(LOG_LEVEL_DEBUG, "Raw unsigned 4byte hash code: %u", hash_code);
+
     return hash_code % hashmap->capacity;
 }
 
 
 void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, void* value) {
 
-    unsigned int bucket = 0;
+    int bucket = 0;
     node_t *new_node = NULL;
+
+    if (key == NULL || key[0] == '\0') {
+        return;
+    }
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Rehashing key [%s] to new hashmap [%p]", key, hashmap);
 
     bucket = hm_hash(hashmap, key);
     if (bucket == HM_ERROR) {
+        HM_LOG(LOG_LEVEL_ERROR, "Error hashing key!", key);
         return;
     }
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Bucket [%d]", bucket);
 
     new_node = malloc(sizeof(node_t));
-
     if (new_node == NULL) {
-        return;
-    }
-
-    if (key == NULL || key[0] == '\0') {
         return;
     }
 
@@ -231,7 +235,7 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
     node_t* current_node = NULL;
     node_t* next_node = NULL;
 
-    //printf("[%s][%s](%d) - Entrada da funcao de resize\n", __FILE__, __FUNCTION__, __LINE__);
+    HM_LOG(LOG_LEVEL_DEBUG, "Resizing hashmap [%p][ll: %p] by factor %.2f", hashmap, hashmap->list, resize_factor);
 
     if (hashmap == NULL || resize_factor <= 1.0) {
         return HM_ERROR;
@@ -241,10 +245,19 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
 
     aux_hashmap = hm_create(new_size);
 
+    HM_LOG(
+        LOG_LEVEL_DEBUG,
+        "New aux hashmap [%p][ll: %p] created with capacity %d",
+        aux_hashmap,
+        aux_hashmap->list,
+        aux_hashmap->capacity
+    );
+
     if (aux_hashmap == NULL) {
         return HM_ERROR;
     }
 
+    HM_LOG(LOG_LEVEL_DEBUG, "Rehashing elements", hashmap, aux_hashmap);
     for (int i = 0; i < hashmap->capacity; i++) {
         current_node = hashmap->list[i];
 
@@ -258,12 +271,15 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
     }
 
 
+    HM_LOG(LOG_LEVEL_DEBUG, "Freeing old content and swapping it's content with aux", hashmap);
     free(hashmap->list);
 
     hashmap->list = aux_hashmap->list;
     hashmap->capacity = aux_hashmap->capacity;
 
     free(aux_hashmap);
+    HM_LOG(LOG_LEVEL_DEBUG, "Aux hashmap freed", hashmap);
+    HM_LOG(LOG_LEVEL_DEBUG, "Hashmap [%p][ll: %p] resized to capacity %d", hashmap, hashmap->list, hashmap->capacity);
 
     return HM_SUCCESS;
 }
@@ -280,6 +296,16 @@ int hm_search(hashmap_t *hashmap, char *key, void **value) {
     unsigned int bucket = 0;
     int hash_code = 0;
 
+    if (key == NULL) {
+        return HM_ERROR;
+    }
+
+    if (key[0] == '\0') {
+        return HM_NOT_FOUND;
+    }
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Searching key [%s] in hashmap [%p]", key, hashmap);
+
     hash_code = hm_hash(hashmap, key);
 
     if (hash_code == HM_ERROR || value == NULL) {
@@ -293,6 +319,7 @@ int hm_search(hashmap_t *hashmap, char *key, void **value) {
     while (list != NULL) {
         if (strcmp(key, list->key) == 0) {
             *value = list->value;
+            HM_LOG(LOG_LEVEL_DEBUG, "Key [%s] found in bucket [%d]", key, bucket);
             return HM_SUCCESS;
         }
         list = list->next;
@@ -310,7 +337,7 @@ int hm_search(hashmap_t *hashmap, char *key, void **value) {
  * @param value Valor do elemento
  */
 void hm_insert(hashmap_t *hashmap, char *key, node_value_t value_type, void* value) {
-    unsigned int bucket = 0;
+    int bucket = 0;
     int hash_code = 0;
     double current_load_factor = 0;
 
@@ -321,30 +348,34 @@ void hm_insert(hashmap_t *hashmap, char *key, node_value_t value_type, void* val
         return;
     }
 
+    if (key == NULL || key[0] == '\0') {
+        return;
+    }
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Inserting key [%s] to hashmap [%p]", key, hashmap);
 
     current_load_factor = hm_get_load_factor(hashmap);
     if (current_load_factor == HM_ERROR) {
         return;
     }
 
+    HM_LOG(LOG_LEVEL_DEBUG, "Current load factor: %.2f", current_load_factor);
+
     if (current_load_factor >= HM_LOAD_FACTOR_THRESHOLD) {
-        //printf("[%s][%s](%d) - Resize necessario! [load:%.2f|threshold:%.2f\n", __FILE__, __FUNCTION__, __LINE__, current_load_factor, HM_LOAD_FACTOR_THRESHOLD);
+        HM_LOG(LOG_LEVEL_DEBUG, "Load factor threshold reached. Resizing hashmap");
         if (hm_resize(hashmap, HM_RESIZE_FACTOR) == HM_ERROR) {
             return;
         }
     }
 
-    if (key == NULL || key[0] == '\0') {
-        return;
-    }
-
     hash_code = hm_hash(hashmap, key);
-
     if (hash_code == HM_ERROR) {
         return;
     }
 
     bucket = hash_code;
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Bucket [%d]", bucket);
 
     new_node_key = strdup(key);
     new_node_val = value;
@@ -377,8 +408,5 @@ void hm_insert(hashmap_t *hashmap, char *key, node_value_t value_type, void* val
     }
 
     hashmap->list[bucket] = new_node;
-
-    //printf("[%s][%s](%d) - Inseriu a chave %s no bucket %d\n", __FILE__, __FUNCTION__, __LINE__, key, bucket);
     hashmap->size++;
-    //printf("[%s][%s](%d) - hm_insert: [s/c %d/%d]\n", __FILE__, __FUNCTION__, __LINE__, hashmap->size, hashmap->capacity);
 }

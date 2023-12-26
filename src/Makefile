@@ -16,10 +16,7 @@ LIB_NAME=libmap
 SRCS=$(wildcard *.c)
 OBJS=$(patsubst %.c,$(OUT_DIR)/%.o,$(SRCS))
 
-all: dirs static dynamic
-
-dirs:
-	@mkdir -p $(OUT_DIR)
+all: static dynamic
 
 static: $(OUT_DIR)/$(LIB_NAME).a
 
