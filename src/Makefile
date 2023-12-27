@@ -10,6 +10,10 @@ endef
 
 CC=gcc
 CFLAGS=-I. -Wno-deprecated-declarations -fPIC
+ifeq ($(DEBUG), 1)
+	 CFLAGS+=-g
+else
+endif
 OUT_DIR=../out
 LIB_NAME=libmap
 

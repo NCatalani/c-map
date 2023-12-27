@@ -31,7 +31,7 @@ typedef struct {
 hashmap_t* hm_create(int capacity);
 hashmap_t* hm_create_default(void);
 int hm_hash(hashmap_t *hm, char* str);
-int hm_search(hashmap_t* hm, char* key, void **value);
+int hm_search(hashmap_t* hm, void **value, ...);
 int hm_resize(hashmap_t* hm, float factor);
 float hm_get_load_factor(hashmap_t* hm);
 void hm_free(void** hm_p);

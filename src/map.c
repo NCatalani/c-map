@@ -292,40 +292,60 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
  * @param key Chave do elemento
  * @return int Caso encontre o elemento, retorna o valor. Caso contr�rio, retorna HM_NOT_FOUND. Em caso de erro, retorna HM_ERROR.
  */
-int hm_search(hashmap_t *hashmap, char *key, void **value) {
-    unsigned int bucket = 0;
-    int hash_code = 0;
+int hm_search(hashmap_t *hashmap, void **value, ...) {
+    va_list args;
+    char *key = NULL;
 
-    if (key == NULL) {
+    unsigned int bucket = 0;
+
+    hashmap_t *current_hm = hashmap;
+    node_t *node = NULL;
+
+    if (hashmap == NULL || hashmap->list == NULL) {
         return HM_ERROR;
     }
 
-    if (key[0] == '\0') {
+    va_start(args, value);
+
+    while (1) {
+        // Retrieves the current key
+        key = va_arg(args, char *);
+
+        if (key == NULL) {
+            break;
+        }
+
+        // Hashes the key
+        if((bucket = hm_hash(current_hm, key)) == HM_ERROR) {
+            va_end(args);
+            return HM_ERROR;
+        }
+
+        if ((node = current_hm->list[bucket]) == NULL) {
+            va_end(args);
+            return HM_NOT_FOUND;
+        }
+
+        do {
+            if (!strcmp(key, node->key)) {
+                break;
+            }
+            node = node->next;
+        } while(node != NULL);
+
+        if (node && node->value_type == HM_VALUE_MAP) {
+            current_hm = node->value;
+        }
+    }
+
+    va_end(args);
+
+    if (node == NULL) {
         return HM_NOT_FOUND;
     }
 
-    HM_LOG(LOG_LEVEL_DEBUG, "Searching key [%s] in hashmap [%p]", key, hashmap);
-
-    hash_code = hm_hash(hashmap, key);
-
-    if (hash_code == HM_ERROR || value == NULL) {
-        return HM_ERROR;
-    }
-
-    bucket = hash_code;
-
-    node_t *list = hashmap->list[bucket];
-
-    while (list != NULL) {
-        if (strcmp(key, list->key) == 0) {
-            *value = list->value;
-            HM_LOG(LOG_LEVEL_DEBUG, "Key [%s] found in bucket [%d]", key, bucket);
-            return HM_SUCCESS;
-        }
-        list = list->next;
-    }
-
-    return HM_NOT_FOUND;
+    *value = node->value;
+    return HM_SUCCESS;
 }
 
 
