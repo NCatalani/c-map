@@ -33,6 +33,70 @@ unsigned char *sha256_hash(char *key) {
 }
 
 
+node_t* hm_node_new(void) {
+    node_t *node = malloc(sizeof(node_t));
+
+    if (!node) {
+        return NULL;
+    }
+
+    node->key = NULL;
+    node->value = NULL;
+    node->value_type = HM_VALUE_MAP;
+    node->next = NULL;
+
+    return node;
+}
+
+
+node_t* hm_node_create(char *key, node_value_t value_type, void* value, void* next) {
+    node_t *node = hm_node_new();
+
+    if (!node) {
+        return NULL;
+    }
+
+    node->key = key;
+    node->value = value;
+    node->value_type = value_type;
+    node->next = next;
+
+    return node;
+}
+
+
+void hm_node_free(void **node_p) {
+    if (node_p == NULL || *node_p == NULL) {
+        return;
+    }
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Freeing node [%p][%p]", *node_p, node_p);
+
+    node_t *node = *node_p;
+
+    HM_LOG(LOG_LEVEL_DEBUG, "Freeing node key [%s][%p]", node->key, &node->key);
+    if (node->key) {
+        free(node->key);
+        node->key = NULL;
+    }
+
+    if (node->value) {
+        switch(node->value_type) {
+            case HM_VALUE_STR:
+                free(node->value);
+                break;
+            case HM_VALUE_MAP:
+                hm_free((void **)&node->value);
+                break;
+        }
+        node->value = NULL;
+    }
+
+    free(node);
+    *node_p = NULL;
+}
+
+
 hashmap_t* hm_new() {
     hashmap_t *hashmap = malloc(sizeof(hashmap_t));
 
@@ -100,51 +164,23 @@ float hm_get_load_factor(hashmap_t *hashmap) {
  * @param hashmap_p Referencia para o ponteiro do hashmap
  */
 void hm_free(void **hashmap_p) {
-    hashmap_t *hashmap = NULL;
-    node_t *current_node, *next_node = NULL;
-
-    if (hashmap_p == NULL) {
+    if (hashmap_p == NULL || *hashmap_p == NULL) {
         return;
     }
 
-    hashmap = *hashmap_p;
-
-    if (hashmap == NULL && hashmap->list == NULL) {
-        return;
-    }
+    hashmap_t *hashmap = *hashmap_p;
 
     for (int i = 0; i < hashmap->capacity; i++) {
-        current_node = hashmap->list[i];
+        printf("Freeing bucket [%d][%p][%p]\n", i, *hashmap_p, hashmap_p);
 
+        node_t *current_node = hashmap->list[i];
         while (current_node != NULL) {
-            next_node = current_node->next;
-
-            switch(current_node->value_type) {
-                case HM_VALUE_STR:
-                    if (current_node->value != NULL) {
-                        free(current_node->value);
-                        current_node->value = NULL;
-                    }
-                    break;
-                case HM_VALUE_MAP:
-                    if (current_node->value != NULL) {
-                        hm_free((void **) &current_node->value);
-                        current_node->value = NULL;
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            if (current_node->key != NULL) {
-                free(current_node->key);
-                current_node->key = NULL;
-            }
-
-            free(current_node);
-
+            node_t *next_node = current_node->next;
+            HM_LOG(LOG_LEVEL_DEBUG, "Freeing node [c:%p][n:%p]", current_node, next_node);
+            hm_node_free((void **)&current_node);
             current_node = next_node;
         }
+        hashmap->list[i] = NULL;
     }
 
     free(hashmap->list);
@@ -190,7 +226,7 @@ int hm_hash(hashmap_t *hashmap, char *key) {
 void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, void* value) {
 
     int bucket = 0;
-    node_t *new_node = NULL;
+    node_t *node = NULL;
 
     if (key == NULL || key[0] == '\0') {
         return;
@@ -206,17 +242,17 @@ void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, vo
 
     HM_LOG(LOG_LEVEL_DEBUG, "Bucket [%d]", bucket);
 
-    new_node = malloc(sizeof(node_t));
-    if (new_node == NULL) {
+
+    if ((node = hm_node_create(
+        strdup(key),
+        value_type,
+        value,
+        hashmap->list[bucket]
+    )) == NULL) {
         return;
     }
 
-    new_node->key = key;
-    new_node->value = value;
-    new_node->value_type = value_type;
-    new_node->next = hashmap->list[bucket];
-
-    hashmap->list[bucket] = new_node;
+    hashmap->list[bucket] = node;
 }
 
 
@@ -356,77 +392,128 @@ int hm_search(hashmap_t *hashmap, void **value, ...) {
  * @param key Chave do elemento
  * @param value Valor do elemento
  */
-void hm_insert(hashmap_t *hashmap, char *key, node_value_t value_type, void* value) {
+void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
+    va_list args;
+
     int bucket = 0;
-    int hash_code = 0;
     double current_load_factor = 0;
 
-    void* new_node_val = NULL;
-    char* new_node_key = NULL;
+    node_t *node = NULL;
+    hashmap_t *aux_hm = NULL;
+    hashmap_t *current_hm = NULL;
+
+    char* key = NULL;
+    char* next_key = NULL;
+
+    char* node_key = NULL;
+    char* node_val = NULL;
 
     if (hashmap == NULL || hashmap->list == NULL) {
         return;
     }
 
-    if (key == NULL || key[0] == '\0') {
-        return;
-    }
+    current_hm = hashmap;
 
-    HM_LOG(LOG_LEVEL_DEBUG, "Inserting key [%s] to hashmap [%p]", key, hashmap);
+    va_start(args, value);
+    key = va_arg(args, char *);
 
-    current_load_factor = hm_get_load_factor(hashmap);
-    if (current_load_factor == HM_ERROR) {
-        return;
-    }
+    while(key != NULL) {
+        node_value_t node_type = HM_VALUE_MAP;
 
-    HM_LOG(LOG_LEVEL_DEBUG, "Current load factor: %.2f", current_load_factor);
+        next_key = va_arg(args, char *);
 
-    if (current_load_factor >= HM_LOAD_FACTOR_THRESHOLD) {
-        HM_LOG(LOG_LEVEL_DEBUG, "Load factor threshold reached. Resizing hashmap");
-        if (hm_resize(hashmap, HM_RESIZE_FACTOR) == HM_ERROR) {
+        if ((current_load_factor = hm_get_load_factor(current_hm)) == HM_ERROR) {
             return;
         }
-    }
 
-    hash_code = hm_hash(hashmap, key);
-    if (hash_code == HM_ERROR) {
-        return;
-    }
+        HM_LOG(LOG_LEVEL_DEBUG, "Current load factor: %.2f", current_load_factor);
 
-    bucket = hash_code;
-
-    HM_LOG(LOG_LEVEL_DEBUG, "Bucket [%d]", bucket);
-
-    new_node_key = strdup(key);
-    new_node_val = value;
-
-    switch (value_type) {
-        case HM_VALUE_MAP:
-            if (value == NULL) {
-                if ((new_node_val = hm_create_default()) == NULL) {
-                    return;
-                }
-            }
-            break;
-        case HM_VALUE_STR:
-            if (value == NULL) {
+        if (current_load_factor >= HM_LOAD_FACTOR_THRESHOLD) {
+            HM_LOG(LOG_LEVEL_DEBUG, "Load factor threshold reached. Resizing hashmap");
+            if (hm_resize(current_hm, HM_RESIZE_FACTOR) == HM_ERROR) {
                 return;
             }
-            new_node_val = strdup(value);
-            break;
+        }
+
+        if ((bucket = hm_hash(current_hm, key)) == HM_ERROR) {
+            va_end(args);
+            return;
+        }
+
+        node = current_hm->list[bucket];
+
+        while (node != NULL) {
+            if (!strcmp(key, node->key)) {
+                break;
+            }
+            node = node->next;
+        }
+
+
+        if (node == NULL) {
+            // Key not found inside current hashmap
+            node_key = strdup(key);
+
+            // If it's not the last one, create a new hashmap
+            if (
+                next_key != NULL
+                && ((node_val = hm_create_default()) == NULL)
+            ){
+                va_end(args);
+                free(node_key);
+                return;
+            }
+        } else {
+            // Key found inside current hashmap
+            // If it's not the last one, checks if its a map
+            if (next_key != NULL) {
+                if (node->value_type != HM_VALUE_MAP) {
+                    HM_LOG(LOG_LEVEL_ERROR, "Key [%s] is not a hashmap", key);
+                    va_end(args);
+                    return;
+                }
+            } else {
+                // If it's the last one, checks if it's a string
+            }
+        }
+
+        if (next_key == NULL) {
+            switch (value_type) {
+                case HM_VALUE_STR:
+                    node_val = value ? strdup(value) : strdup("");
+                    break;
+                case HM_VALUE_MAP:
+                    node_val = value ? value : hm_create_default();
+                    break;
+            }
+
+            node_type = value_type;
+        }
+
+        if (
+            node_key
+            && node_val
+        ){
+
+            node = hm_node_create(
+                node_key,
+                node_type,
+                node_val,
+                current_hm->list[bucket]
+            );
+
+            current_hm->list[bucket] = node;
+            current_hm->size++;
+        }
+
+        if (node->value_type == HM_VALUE_MAP) {
+            current_hm = node->value;
+        }
+
+        key = next_key;
+        node_key = NULL;
+        node_val = NULL;
     }
 
-
-    node_t *new_node = malloc(sizeof(node_t));
-    new_node->key = new_node_key;
-    new_node->value = new_node_val;
-    new_node->value_type = value_type;
-    new_node->next = NULL;
-
-    if (hashmap->list[bucket] != NULL) {
-        new_node->next = hashmap->list[bucket];
-    }
-
-    hashmap->list[bucket] = new_node;
-    hashmap->size++;
+    va_end(args);
 }

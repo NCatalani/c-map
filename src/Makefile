@@ -10,8 +10,9 @@ endef
 
 CC=gcc
 CFLAGS=-I. -Wno-deprecated-declarations -fPIC
+LIBS=-lssl -lcrypto
 ifeq ($(DEBUG), 1)
-	 CFLAGS+=-g
+	CFLAGS+=-g
 else
 endif
 OUT_DIR=../out
@@ -32,11 +33,11 @@ $(OUT_DIR)/$(LIB_NAME).a: $(OBJS)
 
 $(OUT_DIR)/$(LIB_NAME).so: $(OBJS)
 	$(call print,$(GREEN),"Creating dynamic library...")
-	$(CC) -shared -o $@ $(OBJS)
+	$(CC) -shared -o $@ $(OBJS) $(LIBS)
 
 $(OUT_DIR)/%.o: %.c
 	$(call print,$(GREEN),"Compiling $<...")
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ $(LIBS)
 
 .PHONY: clean
 
