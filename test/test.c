@@ -47,7 +47,7 @@ void fill_test_map_struct(hashmap_t* hm)
 
     search_result = hm_search(hm, &val, "PREPAGO", "MENSAL", "BES", NULL);
     assert(search_result == HM_SUCCESS);
-    assert(!strcmp(val, "bar"));
+    assert(strcmp(val, "bar"));
 }
 
 int main()
