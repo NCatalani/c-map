@@ -2,7 +2,7 @@ name: C Project Release
 
 on:
   push:
-    branches: 
+    branches:
       - master
 
 jobs:
@@ -18,12 +18,10 @@ jobs:
 
       - name: Compile
         run: |
-          cd src
-          make all
+          make
 
       - name: Run Tests
         run: |
-          cd test
           make test
 
       - name: Create Release Directory
