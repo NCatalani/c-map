@@ -13,7 +13,7 @@ all: lib test
 
 run: clean test
 	$(call print,$(GREEN),"Running test...")
-	@./out/test2
+	@./out/test
 
 lib:
 	$(call print,$(GREEN),"Building library...")

@@ -2,4 +2,6 @@
 out/*
 !out/.gitkeep
 
+# IDE files
 .vscode
+.idea
