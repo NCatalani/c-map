@@ -32,6 +32,8 @@ node_t* hm_node_new(void);
 node_t* hm_node_create(char* key, node_value_t value_type, void* value, void* next);
 hashmap_t* hm_create(int capacity);
 hashmap_t* hm_create_default(void);
+char* hm_serialize(hashmap_t* hm);
+char* hm_serialize_node(node_t *node);
 int hm_hash(hashmap_t *hm, char* str);
 int hm_search(hashmap_t* hm, void **value, ...);
 int hm_resize(hashmap_t* hm, float factor);

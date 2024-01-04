@@ -5,7 +5,9 @@
 
 #include "log.h"
 
-log_lv_t global_log_level = LOG_LEVEL_DEBUG;
+log_lv_t global_log_level = LOG_LEVEL_INFO;
+//log_lv_t global_log_level = LOG_LEVEL_DEBUG;
+//log_lv_t global_log_level = LOG_LEVEL_NOLOG;
 
 void logger(
     log_lv_t lv,

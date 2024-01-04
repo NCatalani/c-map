@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <limits.h>
+#include <stdbool.h>
 
 #include <openssl/sha.h>
 
@@ -12,27 +13,32 @@
 
 
 /**
- * @brief Realiza o hash SHA256 de uma string
+ * @brief Hash's a string using SHA256
  *
- * @param key Chave a ser hasheada
- * @return unsigned char* Array de bytes com o hash alocado no heap. O retorno deve ser liberado.
+ * @param key String to be hashed
+ * @return unsigned char* Heap allocated byte array.
  */
-unsigned char *sha256_hash(char *key) {
+unsigned char *sha256_hash(char *str) {
     unsigned char hash_buff[SHA256_DIGEST_LENGTH] = {0};
     unsigned char *hash =  NULL;
 
     SHA256_CTX sha256;
     SHA256_Init(&sha256);
-    SHA256_Update(&sha256, key, strlen(key));
+    SHA256_Update(&sha256, str, strlen(str));
     SHA256_Final(hash_buff, &sha256);
 
-    hash = malloc(SHA256_DIGEST_LENGTH);
+    hash = calloc(SHA256_DIGEST_LENGTH, sizeof(unsigned char));
     memcpy(hash, hash_buff, SHA256_DIGEST_LENGTH);
 
     return hash;
 }
 
 
+/**
+ * @brief Initializes a new node
+ *
+ * @return node_t* Pointer to the new node
+ */
 node_t* hm_node_new(void) {
     node_t *node = malloc(sizeof(node_t));
 
@@ -49,6 +55,15 @@ node_t* hm_node_new(void) {
 }
 
 
+/**
+ * @brief Instantiates a heap allocated node using the given parameters as a reference.
+ *
+ * @param key Node key
+ * @param value_type Node value type
+ * @param value Node value
+ * @param next Next node
+ * @return node_t* Instantiated node
+ */
 node_t* hm_node_create(char *key, node_value_t value_type, void* value, void* next) {
     node_t *node = hm_node_new();
 
@@ -65,6 +80,11 @@ node_t* hm_node_create(char *key, node_value_t value_type, void* value, void* ne
 }
 
 
+/**
+ * @brief Deallocates the memory used by a node
+ *
+ * @param node_p Reference to the node pointer
+ */
 void hm_node_free(void **node_p) {
     if (node_p == NULL || *node_p == NULL) {
         return;
@@ -97,6 +117,11 @@ void hm_node_free(void **node_p) {
 }
 
 
+/**
+ * @brief Initializes a new hashmap
+ *
+ * @return hashmap_t* Pointer to the new hashmap
+ */
 hashmap_t* hm_new() {
     hashmap_t *hashmap = malloc(sizeof(hashmap_t));
 
@@ -111,10 +136,12 @@ hashmap_t* hm_new() {
     return hashmap;
 }
 
+
 /**
- * @brief Cria uma novo hashmap aloca no heap
+ * @brief Instantiates a heap allocated hashmap
  *
- * @return hashmap_t* Ponteiro para o hashmap
+ * @param capacity The hashmap's initial capacity
+ * @return hashmap_t* Pointer to the new hashmap
  */
 hashmap_t* hm_create(int capacity) {
     hashmap_t *hashmap = hm_new();
@@ -131,9 +158,9 @@ hashmap_t* hm_create(int capacity) {
 
 
 /**
- * @brief Criar um novo hashmap com capacidade inicial padrão
+ * @brief Instantiates a heap allocated hashmap with the default capacity
  *
- * @return hashmap_t* Hashmap
+ * @return hashmap_t*
  */
 hashmap_t* hm_create_default(void) {
     return hm_create(HM_INITIAL_CAPACITY);
@@ -141,10 +168,10 @@ hashmap_t* hm_create_default(void) {
 
 
 /**
- * @brief Retorna o fator de carga do hashmap
+ * @brief Retrieves the load factor of the hashmap
  *
- * @param hashmap Hashmap
- * @return int Fator de carga
+ * @param hashmap Pointer to the hashmap
+ * @return float Load factor
  */
 float hm_get_load_factor(hashmap_t *hashmap) {
     if (hashmap == NULL || hashmap->size > hashmap->capacity) {
@@ -158,10 +185,11 @@ float hm_get_load_factor(hashmap_t *hashmap) {
     return (float)hashmap->size/hashmap->capacity;
 }
 
+
 /**
- * @brief Libera a memoria alocada para o hashmap
+ * @brief Deallocates the memory used by the hashmap
  *
- * @param hashmap_p Referencia para o ponteiro do hashmap
+ * @param hashmap_p Reference to the hashmap pointer
  */
 void hm_free(void **hashmap_p) {
     if (hashmap_p == NULL || *hashmap_p == NULL) {
@@ -171,8 +199,6 @@ void hm_free(void **hashmap_p) {
     hashmap_t *hashmap = *hashmap_p;
 
     for (int i = 0; i < hashmap->capacity; i++) {
-        printf("Freeing bucket [%d][%p][%p]\n", i, *hashmap_p, hashmap_p);
-
         node_t *current_node = hashmap->list[i];
         while (current_node != NULL) {
             node_t *next_node = current_node->next;
@@ -192,37 +218,41 @@ void hm_free(void **hashmap_p) {
 
 
 /**
- * @brief Realiza o hash da string e retorna um
- * id de bucket válido
+ * @brief Hashes a key and returns the bucket index
  *
- * @param key Chave a ser hasheada
- * @return unsigned int Valor do hash
+ * @param hashmap Pointer to the hashmap
+ * @param key Key to be hashed
+ * @return int Bucket index
  */
 int hm_hash(hashmap_t *hashmap, char *key) {
 
     unsigned char *hash = NULL;
     unsigned int hash_code = 0;
 
-    hash = sha256_hash(key);
-
-    if (hash == NULL) {
+    if ((hash = sha256_hash(key)) == NULL) {
         return HM_ERROR;
     }
 
-    hash_code = ((unsigned int)hash[0] << 24) |
-        ((unsigned int)hash[1] << 16) |
-        ((unsigned int)hash[2] << 8)  |
-        (unsigned int)hash[3];
+    hash_code = ((unsigned int)hash[0] << 24)    |
+            ((unsigned int)hash[1] << 16)   |
+            ((unsigned int)hash[2] << 8)    |
+            (unsigned int)hash[3];
 
     free(hash);
     hash = NULL;
-
-    HM_LOG(LOG_LEVEL_DEBUG, "Raw unsigned 4byte hash code: %u", hash_code);
 
     return hash_code % hashmap->capacity;
 }
 
 
+/**
+ * @brief Rehashes a key to a new hashmap
+ *
+ * @param hashmap Pointer to the hashmap
+ * @param key Key to be rehashed
+ * @param value_type Value type
+ * @param value Value
+ */
 void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, void* value) {
 
     int bucket = 0;
@@ -232,16 +262,11 @@ void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, vo
         return;
     }
 
-    HM_LOG(LOG_LEVEL_DEBUG, "Rehashing key [%s] to new hashmap [%p]", key, hashmap);
-
     bucket = hm_hash(hashmap, key);
     if (bucket == HM_ERROR) {
         HM_LOG(LOG_LEVEL_ERROR, "Error hashing key!", key);
         return;
     }
-
-    HM_LOG(LOG_LEVEL_DEBUG, "Bucket [%d]", bucket);
-
 
     if ((node = hm_node_create(
         strdup(key),
@@ -252,17 +277,17 @@ void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, vo
         return;
     }
 
+    // Sets the new node as the head of the bucket
     hashmap->list[bucket] = node;
 }
 
 
-
 /**
- * @brief Realiza o resize do hashmap por um fator de resize
+ * @brief Resizes the hashmap according to the given factor
  *
- * @param hashmap Hashmap
- * @param resize_factor Factor de resize
- * @return int Novo tamanho, em caso de sucesso. HM_ERROR, em caso de erro.
+ * @param hashmap Pointer to the hashmap
+ * @param resize_factor Resize factor
+ * @return int Status code (HM_SUCCESS or HM_ERROR)
  */
 int hm_resize(hashmap_t* hashmap, float resize_factor) {
     size_t new_size = 0;
@@ -271,29 +296,17 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
     node_t* current_node = NULL;
     node_t* next_node = NULL;
 
-    HM_LOG(LOG_LEVEL_DEBUG, "Resizing hashmap [%p][ll: %p] by factor %.2f", hashmap, hashmap->list, resize_factor);
-
     if (hashmap == NULL || resize_factor <= 1.0) {
         return HM_ERROR;
     }
 
+    // Creates a new auxiliar hashmap to store the rehashed nodes
     new_size = (size_t)(hashmap->capacity * resize_factor);
-
     aux_hashmap = hm_create(new_size);
-
-    HM_LOG(
-        LOG_LEVEL_DEBUG,
-        "New aux hashmap [%p][ll: %p] created with capacity %d",
-        aux_hashmap,
-        aux_hashmap->list,
-        aux_hashmap->capacity
-    );
-
     if (aux_hashmap == NULL) {
         return HM_ERROR;
     }
 
-    HM_LOG(LOG_LEVEL_DEBUG, "Rehashing elements", hashmap, aux_hashmap);
     for (int i = 0; i < hashmap->capacity; i++) {
         current_node = hashmap->list[i];
 
@@ -306,27 +319,33 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
         }
     }
 
-
-    HM_LOG(LOG_LEVEL_DEBUG, "Freeing old content and swapping it's content with aux", hashmap);
+    // Frees the old hashmap
     free(hashmap->list);
-
     hashmap->list = aux_hashmap->list;
     hashmap->capacity = aux_hashmap->capacity;
 
     free(aux_hashmap);
-    HM_LOG(LOG_LEVEL_DEBUG, "Aux hashmap freed", hashmap);
-    HM_LOG(LOG_LEVEL_DEBUG, "Hashmap [%p][ll: %p] resized to capacity %d", hashmap, hashmap->list, hashmap->capacity);
 
     return HM_SUCCESS;
 }
 
 
 /**
- * @brief Busca um elemento no hashmap
+ * @brief Searches for a value inside the hashmap.
  *
- * @param hashmap Ponteiro para o hashmap
- * @param key Chave do elemento
- * @return int Caso encontre o elemento, retorna o valor. Caso contr�rio, retorna HM_NOT_FOUND. Em caso de erro, retorna HM_ERROR.
+ * The function receives a variable number of keys as arguments. It will search for the hierarchy of keys inside the hashmap,
+ * returning the following possible return codes:
+ *
+ *  - HM_SUCCESS: The value was found and the pointer to it was stored in the value argument.
+ *
+ *  - HM_NOT_FOUND: The value was not found.
+ *
+ *  - HM_ERROR: An error ocurred.
+ *
+ * @param hashmap Pointer to the hashmap
+ * @param value Reference to the pointer where the value will be stored
+ * @param ... Variable number of keys terminated by a NULL value
+ * @return int Status code (HM_SUCCESS, HM_NOT_FOUND or HM_ERROR)
  */
 int hm_search(hashmap_t *hashmap, void **value, ...) {
     va_list args;
@@ -386,11 +405,16 @@ int hm_search(hashmap_t *hashmap, void **value, ...) {
 
 
 /**
- * @brief Insere um elemento no hashmap
+ * @brief Inserts a value inside the hashmap.
  *
- * @param hashmap Ponteiro para o hashmap
- * @param key Chave do elemento
- * @param value Valor do elemento
+ * The function receives a variable number of keys as arguments.
+ * If the key is not found inside the hashmap and it's not the last one, a new hashmap will be created and inserted.
+ * If the key is not found inside the hashmap and it's the last one, the value will be inserted.
+ *
+ * @param hashmap Pointer to the hashmap
+ * @param value_type Value type
+ * @param value Pointer to the value
+ * @param ... Variable number of keys terminated by a NULL value
  */
 void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
     va_list args;
@@ -468,12 +492,17 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
             // If it's not the last one, checks if its a map
             if (next_key != NULL) {
                 if (node->value_type != HM_VALUE_MAP) {
-                    HM_LOG(LOG_LEVEL_ERROR, "Key [%s] is not a hashmap", key);
+                    HM_LOG(LOG_LEVEL_WARNING, "Key [%s] is not a hashmap", key);
                     va_end(args);
                     return;
                 }
             } else {
                 // If it's the last one, checks if it's a string
+                if (value_type == HM_VALUE_STR && node->value_type == HM_VALUE_STR) {
+                    free(node->value);
+                    node->value = strdup((char *)value);
+                    continue;
+                }
             }
         }
 
@@ -516,4 +545,105 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
     }
 
     va_end(args);
+}
+
+
+/**
+ * @brief Serializes a hashmap into a JSON string
+ *
+ * @param hashmap Pointer to the hashmap
+ * @return char* Heap allocated JSON string
+ */
+char* hm_serialize(hashmap_t *hashmap) {
+    if (hashmap == NULL || hashmap->list == NULL) {
+        return NULL;
+    }
+
+    size_t buffer_size = 2; // For opening and closing braces
+    size_t offset = 0;
+    char *serialized = malloc(buffer_size);
+    if (serialized == NULL) {
+        return NULL;
+    }
+
+    serialized[offset++] = '{';
+
+    bool first_item = true;
+    for (int i = 0; i < hashmap->capacity; i++) {
+        for (node_t *current = hashmap->list[i]; current != NULL; current = current->next) {
+            if (!first_item) {
+                serialized[offset++] = ',';
+                buffer_size++;
+            }
+
+            char *node_serialized = hm_serialize_node(current);
+            if (node_serialized) {
+                size_t node_length = strlen(node_serialized);
+                if (offset + node_length >= buffer_size) {
+                    buffer_size += node_length;
+                    serialized = realloc(serialized, buffer_size);
+                    if (serialized == NULL) {
+                        free(node_serialized);
+                        return NULL;
+                    }
+                }
+                strcpy(serialized + offset, node_serialized);
+                offset += node_length;
+                first_item = false;
+                free(node_serialized);
+            }
+        }
+    }
+
+    serialized[offset++] = '}';
+    serialized[offset] = '\0'; // Null-terminate the string
+
+    return serialized;
+}
+
+
+/**
+ * @brief  Serializes a node into a JSON string
+ *
+ * @param node Pointer to the node
+ * @return char* Heap allocated JSON string
+ */
+char* hm_serialize_node(node_t *node) {
+    if (node == NULL) {
+        return NULL;
+    }
+
+    size_t key_len = strlen(node->key);
+    size_t buffer_size = key_len + 4; // Key, quotes, colon
+
+    char *value_serialized = NULL;
+    if (node->value_type == HM_VALUE_STR) {
+        value_serialized = (char *)node->value;
+        buffer_size += strlen(value_serialized) + 2; // Value and quotes
+    } else if (node->value_type == HM_VALUE_MAP) {
+        value_serialized = hm_serialize((hashmap_t *)node->value);
+        buffer_size += value_serialized ? strlen(value_serialized) : 4; // Value or "null"
+    }
+
+    char *serialized_node = malloc(buffer_size);
+    if (serialized_node == NULL) {
+        free(value_serialized);
+        return NULL;
+    }
+
+    sprintf(serialized_node, "\"%s\":", node->key);
+    if (node->value_type == HM_VALUE_STR) {
+        strcat(serialized_node, "\"");
+        strcat(serialized_node, value_serialized);
+        strcat(serialized_node, "\"");
+    } else if (node->value_type == HM_VALUE_MAP) {
+        if (value_serialized) {
+            strcat(serialized_node, value_serialized);
+            free(value_serialized);
+        } else {
+            strcat(serialized_node, "null");
+        }
+    }
+
+    return serialized_node;
 }

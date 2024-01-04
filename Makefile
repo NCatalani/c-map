@@ -9,9 +9,9 @@ endef
 
 all: lib test
 
-run: test
+run: clean test
 	$(call print,$(GREEN),"Running test...")
-	@./out/test
+	@./out/test2
 
 lib:
 	$(call print,$(GREEN),"Building library...")
