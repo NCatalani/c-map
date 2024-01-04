@@ -22,7 +22,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          make test
+          make run
 
       - name: Create Release Directory
         if: startsWith(github.ref, 'refs/tags/')
