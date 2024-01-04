@@ -1,28 +1,30 @@
-#include <stdio.h>
 #include <stdarg.h>
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "log.h"
+#include <cmap/log.h>
 
 log_lv_t global_log_level = LOG_LEVEL_INFO;
-//log_lv_t global_log_level = LOG_LEVEL_DEBUG;
-//log_lv_t global_log_level = LOG_LEVEL_NOLOG;
+// log_lv_t global_log_level = LOG_LEVEL_DEBUG;
+// log_lv_t global_log_level = LOG_LEVEL_NOLOG;
 
-void logger(
-    log_lv_t lv,
-    const char* file,
-    const char* function,
-    int line,
-    const char *fmt,
-    ...
-) {
-    const char *log_level_str;
+void logger(log_lv_t lv, const char* file, const char* function, int line, const char* fmt, ...)
+{
+    const char* log_level_str;
     switch (lv) {
-        case LOG_LEVEL_INFO:    log_level_str = "[INFO]"; break;
-        case LOG_LEVEL_WARNING: log_level_str = "[WARNING]"; break;
-        case LOG_LEVEL_DEBUG:   log_level_str = "[DEBUG]"; break;
-        default:                log_level_str = "[UNKNOWN]"; break;
+    case LOG_LEVEL_INFO:
+        log_level_str = "[INFO]";
+        break;
+    case LOG_LEVEL_WARNING:
+        log_level_str = "[WARNING]";
+        break;
+    case LOG_LEVEL_DEBUG:
+        log_level_str = "[DEBUG]";
+        break;
+    default:
+        log_level_str = "[UNKNOWN]";
+        break;
     }
 
     va_list args;

@@ -1,11 +1,12 @@
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
-#include "../src/map.h"
-#include "../src/log.h"
+#include <cmap/log.h>
+#include <cmap/map.h>
 
-void fill_test_map_struct(hashmap_t *hm) {
+void fill_test_map_struct(hashmap_t* hm)
+{
 
     void* val = NULL;
     int search_result = -1;
@@ -13,39 +14,21 @@ void fill_test_map_struct(hashmap_t *hm) {
     HM_LOG(LOG_LEVEL_INFO, "Testing HM insert");
 
     HM_LOG(LOG_LEVEL_INFO, "Inserting: POSPAGO");
-    hm_insert(
-            hm,
-            HM_VALUE_MAP,NULL,
-            "POSPAGO",
-            NULL
-    );
+    hm_insert(hm, HM_VALUE_MAP, NULL, "POSPAGO", NULL);
 
     HM_LOG(LOG_LEVEL_INFO, "Inserting: PREPAGO");
-    hm_insert(
-            hm, HM_VALUE_MAP,NULL,
-            "PREPAGO", NULL
-    );
+    hm_insert(hm, HM_VALUE_MAP, NULL, "PREPAGO", NULL);
 
     HM_LOG(LOG_LEVEL_INFO, "Inserting: PREPAGO->MENSAL->BBS->\"foo\"");
-    hm_insert(
-            hm, HM_VALUE_STR,"foo",
-            "PREPAGO", "MENSAL", "BBS", NULL
-    );
+    hm_insert(hm, HM_VALUE_STR, "foo", "PREPAGO", "MENSAL", "BBS", NULL);
 
     HM_LOG(LOG_LEVEL_INFO, "Inserting: PREPAGO->MENSAL->BES->\"bar\"");
-    hm_insert(
-            hm, HM_VALUE_STR,"bar",
-            "PREPAGO", "MENSAL", "BES", NULL
-    );
+    hm_insert(hm, HM_VALUE_STR, "bar", "PREPAGO", "MENSAL", "BES", NULL);
 
     HM_LOG(LOG_LEVEL_INFO, "Inserting: POSPAGO->TRIMESTRAL->VSA");
-    hm_insert(
-            hm, HM_VALUE_MAP,NULL,
-            "POSPAGO", "TRIMESTRAL", "VSA", NULL
-    );
+    hm_insert(hm, HM_VALUE_MAP, NULL, "POSPAGO", "TRIMESTRAL", "VSA", NULL);
 
     HM_LOG(LOG_LEVEL_INFO, "HM: %s", hm_serialize(hm));
-
 
     search_result = hm_search(hm, &val, "PREPAGO", NULL);
     assert(search_result == HM_SUCCESS);
@@ -65,12 +48,12 @@ void fill_test_map_struct(hashmap_t *hm) {
     search_result = hm_search(hm, &val, "PREPAGO", "MENSAL", "BES", NULL);
     assert(search_result == HM_SUCCESS);
     assert(!strcmp(val, "bar"));
-
 }
 
-int main() {
+int main()
+{
 
-    hashmap_t *hm = NULL;
+    hashmap_t* hm = NULL;
 
     if ((hm = hm_create_default()) == NULL) {
         printf("Erro ao criar hashmap\n");
@@ -79,5 +62,5 @@ int main() {
 
     fill_test_map_struct(hm);
 
-    hm_free((void **)&hm);
+    hm_free((void**)&hm);
 }

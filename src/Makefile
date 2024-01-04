@@ -9,14 +9,23 @@ define print
 endef
 
 CC=gcc
-CFLAGS=-I. -Wno-deprecated-declarations -fPIC
+CFLAGS=-I../include/ -fPIC \
+	-Wno-deprecated-declarations \
+	-Wall \
+	-Wextra \
+	-Wundef \
+	-Wpointer-arith \
+	-Wshadow \
+	-Wstrict-prototypes \
+	-Wunreachable-code
+
 LIBS=-lssl -lcrypto
 ifeq ($(DEBUG), 1)
 	CFLAGS+=-g
 else
 endif
 OUT_DIR=../out
-LIB_NAME=libmap
+LIB_NAME=libcmap
 
 SRCS=$(wildcard *.c)
 OBJS=$(patsubst %.c,$(OUT_DIR)/%.o,$(SRCS))

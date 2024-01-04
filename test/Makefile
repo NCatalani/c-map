@@ -9,10 +9,10 @@ define print
 endef
 
 CC=gcc
-CFLAGS=-I../src -g
+CFLAGS=-I../include -g
 LIBS=-lssl -lcrypto
 OUT_DIR=../out
-LIB_PATH=$(OUT_DIR)/libmap.a
+LIB_PATH=$(OUT_DIR)/libcmap.a
 
 #all: $(OUT_DIR)/test $(OUT_DIR)/test2
 all: $(OUT_DIR)/test2

@@ -1,16 +1,15 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <time.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include <cmap/log.h>
+#include <cmap/map.h>
 
 #include <openssl/sha.h>
-
-#include "map.h"
-#include "log.h"
-
 
 /**
  * @brief Hash's a string using SHA256
@@ -18,9 +17,10 @@
  * @param key String to be hashed
  * @return unsigned char* Heap allocated byte array.
  */
-unsigned char *sha256_hash(char *str) {
-    unsigned char hash_buff[SHA256_DIGEST_LENGTH] = {0};
-    unsigned char *hash =  NULL;
+unsigned char* sha256_hash(char* str)
+{
+    unsigned char hash_buff[SHA256_DIGEST_LENGTH] = { 0 };
+    unsigned char* hash = NULL;
 
     SHA256_CTX sha256;
     SHA256_Init(&sha256);
@@ -33,14 +33,14 @@ unsigned char *sha256_hash(char *str) {
     return hash;
 }
 
-
 /**
  * @brief Initializes a new node
  *
  * @return node_t* Pointer to the new node
  */
-node_t* hm_node_new(void) {
-    node_t *node = malloc(sizeof(node_t));
+node_t* hm_node_new(void)
+{
+    node_t* node = malloc(sizeof(node_t));
 
     if (!node) {
         return NULL;
@@ -54,9 +54,9 @@ node_t* hm_node_new(void) {
     return node;
 }
 
-
 /**
- * @brief Instantiates a heap allocated node using the given parameters as a reference.
+ * @brief Instantiates a heap allocated node using the given parameters as a
+ * reference.
  *
  * @param key Node key
  * @param value_type Node value type
@@ -64,8 +64,9 @@ node_t* hm_node_new(void) {
  * @param next Next node
  * @return node_t* Instantiated node
  */
-node_t* hm_node_create(char *key, node_value_t value_type, void* value, void* next) {
-    node_t *node = hm_node_new();
+node_t* hm_node_create(char* key, node_value_t value_type, void* value, void* next)
+{
+    node_t* node = hm_node_new();
 
     if (!node) {
         return NULL;
@@ -79,20 +80,20 @@ node_t* hm_node_create(char *key, node_value_t value_type, void* value, void* ne
     return node;
 }
 
-
 /**
  * @brief Deallocates the memory used by a node
  *
  * @param node_p Reference to the node pointer
  */
-void hm_node_free(void **node_p) {
+void hm_node_free(void** node_p)
+{
     if (node_p == NULL || *node_p == NULL) {
         return;
     }
 
     HM_LOG(LOG_LEVEL_DEBUG, "Freeing node [%p][%p]", *node_p, node_p);
 
-    node_t *node = *node_p;
+    node_t* node = *node_p;
 
     HM_LOG(LOG_LEVEL_DEBUG, "Freeing node key [%s][%p]", node->key, &node->key);
     if (node->key) {
@@ -101,13 +102,13 @@ void hm_node_free(void **node_p) {
     }
 
     if (node->value) {
-        switch(node->value_type) {
-            case HM_VALUE_STR:
-                free(node->value);
-                break;
-            case HM_VALUE_MAP:
-                hm_free((void **)&node->value);
-                break;
+        switch (node->value_type) {
+        case HM_VALUE_STR:
+            free(node->value);
+            break;
+        case HM_VALUE_MAP:
+            hm_free((void**)&node->value);
+            break;
         }
         node->value = NULL;
     }
@@ -116,14 +117,14 @@ void hm_node_free(void **node_p) {
     *node_p = NULL;
 }
 
-
 /**
  * @brief Initializes a new hashmap
  *
  * @return hashmap_t* Pointer to the new hashmap
  */
-hashmap_t* hm_new() {
-    hashmap_t *hashmap = malloc(sizeof(hashmap_t));
+hashmap_t* hm_new(void)
+{
+    hashmap_t* hashmap = malloc(sizeof(hashmap_t));
 
     if (!hashmap) {
         return NULL;
@@ -136,15 +137,15 @@ hashmap_t* hm_new() {
     return hashmap;
 }
 
-
 /**
  * @brief Instantiates a heap allocated hashmap
  *
  * @param capacity The hashmap's initial capacity
  * @return hashmap_t* Pointer to the new hashmap
  */
-hashmap_t* hm_create(int capacity) {
-    hashmap_t *hashmap = hm_new();
+hashmap_t* hm_create(int capacity)
+{
+    hashmap_t* hashmap = hm_new();
 
     if (!hashmap) {
         return NULL;
@@ -156,16 +157,15 @@ hashmap_t* hm_create(int capacity) {
     return hashmap;
 }
 
-
 /**
  * @brief Instantiates a heap allocated hashmap with the default capacity
  *
  * @return hashmap_t*
  */
-hashmap_t* hm_create_default(void) {
+hashmap_t* hm_create_default(void)
+{
     return hm_create(HM_INITIAL_CAPACITY);
 }
-
 
 /**
  * @brief Retrieves the load factor of the hashmap
@@ -173,7 +173,8 @@ hashmap_t* hm_create_default(void) {
  * @param hashmap Pointer to the hashmap
  * @return float Load factor
  */
-float hm_get_load_factor(hashmap_t *hashmap) {
+float hm_get_load_factor(hashmap_t* hashmap)
+{
     if (hashmap == NULL || hashmap->size > hashmap->capacity) {
         return HM_ERROR;
     }
@@ -182,28 +183,28 @@ float hm_get_load_factor(hashmap_t *hashmap) {
         return 0.0;
     }
 
-    return (float)hashmap->size/hashmap->capacity;
+    return (float)hashmap->size / hashmap->capacity;
 }
-
 
 /**
  * @brief Deallocates the memory used by the hashmap
  *
  * @param hashmap_p Reference to the hashmap pointer
  */
-void hm_free(void **hashmap_p) {
+void hm_free(void** hashmap_p)
+{
     if (hashmap_p == NULL || *hashmap_p == NULL) {
         return;
     }
 
-    hashmap_t *hashmap = *hashmap_p;
+    hashmap_t* hashmap = *hashmap_p;
 
     for (int i = 0; i < hashmap->capacity; i++) {
-        node_t *current_node = hashmap->list[i];
+        node_t* current_node = hashmap->list[i];
         while (current_node != NULL) {
-            node_t *next_node = current_node->next;
+            node_t* next_node = current_node->next;
             HM_LOG(LOG_LEVEL_DEBUG, "Freeing node [c:%p][n:%p]", current_node, next_node);
-            hm_node_free((void **)&current_node);
+            hm_node_free((void**)&current_node);
             current_node = next_node;
         }
         hashmap->list[i] = NULL;
@@ -216,7 +217,6 @@ void hm_free(void **hashmap_p) {
     *hashmap_p = NULL;
 }
 
-
 /**
  * @brief Hashes a key and returns the bucket index
  *
@@ -224,26 +224,23 @@ void hm_free(void **hashmap_p) {
  * @param key Key to be hashed
  * @return int Bucket index
  */
-int hm_hash(hashmap_t *hashmap, char *key) {
+int hm_hash(hashmap_t* hashmap, char* key)
+{
 
-    unsigned char *hash = NULL;
+    unsigned char* hash = NULL;
     unsigned int hash_code = 0;
 
     if ((hash = sha256_hash(key)) == NULL) {
         return HM_ERROR;
     }
 
-    hash_code = ((unsigned int)hash[0] << 24)    |
-            ((unsigned int)hash[1] << 16)   |
-            ((unsigned int)hash[2] << 8)    |
-            (unsigned int)hash[3];
+    hash_code = ((unsigned int)hash[0] << 24) | ((unsigned int)hash[1] << 16) | ((unsigned int)hash[2] << 8) | (unsigned int)hash[3];
 
     free(hash);
     hash = NULL;
 
     return hash_code % hashmap->capacity;
 }
-
 
 /**
  * @brief Rehashes a key to a new hashmap
@@ -253,10 +250,11 @@ int hm_hash(hashmap_t *hashmap, char *key) {
  * @param value_type Value type
  * @param value Value
  */
-void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, void* value) {
+void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, void* value)
+{
 
     int bucket = 0;
-    node_t *node = NULL;
+    node_t* node = NULL;
 
     if (key == NULL || key[0] == '\0') {
         return;
@@ -268,19 +266,13 @@ void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, vo
         return;
     }
 
-    if ((node = hm_node_create(
-        strdup(key),
-        value_type,
-        value,
-        hashmap->list[bucket]
-    )) == NULL) {
+    if ((node = hm_node_create(strdup(key), value_type, value, hashmap->list[bucket])) == NULL) {
         return;
     }
 
     // Sets the new node as the head of the bucket
     hashmap->list[bucket] = node;
 }
-
 
 /**
  * @brief Resizes the hashmap according to the given factor
@@ -289,7 +281,8 @@ void hm_rehash_insert(hashmap_t* hashmap, char* key, node_value_t value_type, vo
  * @param resize_factor Resize factor
  * @return int Status code (HM_SUCCESS or HM_ERROR)
  */
-int hm_resize(hashmap_t* hashmap, float resize_factor) {
+int hm_resize(hashmap_t* hashmap, float resize_factor)
+{
     size_t new_size = 0;
 
     hashmap_t* aux_hashmap = NULL;
@@ -329,14 +322,15 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
     return HM_SUCCESS;
 }
 
-
 /**
  * @brief Searches for a value inside the hashmap.
  *
- * The function receives a variable number of keys as arguments. It will search for the hierarchy of keys inside the hashmap,
- * returning the following possible return codes:
+ * The function receives a variable number of keys as arguments. It will search
+ * for the hierarchy of keys inside the hashmap, returning the following
+ * possible return codes:
  *
- *  - HM_SUCCESS: The value was found and the pointer to it was stored in the value argument.
+ *  - HM_SUCCESS: The value was found and the pointer to it was stored in the
+ * value argument.
  *
  *  - HM_NOT_FOUND: The value was not found.
  *
@@ -347,14 +341,15 @@ int hm_resize(hashmap_t* hashmap, float resize_factor) {
  * @param ... Variable number of keys terminated by a NULL value
  * @return int Status code (HM_SUCCESS, HM_NOT_FOUND or HM_ERROR)
  */
-int hm_search(hashmap_t *hashmap, void **value, ...) {
+int hm_search(hashmap_t* hashmap, void** value, ...)
+{
     va_list args;
-    char *key = NULL;
+    char* key = NULL;
 
-    unsigned int bucket = 0;
+    int bucket = 0;
 
-    hashmap_t *current_hm = hashmap;
-    node_t *node = NULL;
+    hashmap_t* current_hm = hashmap;
+    node_t* node = NULL;
 
     if (hashmap == NULL || hashmap->list == NULL) {
         return HM_ERROR;
@@ -364,14 +359,14 @@ int hm_search(hashmap_t *hashmap, void **value, ...) {
 
     while (1) {
         // Retrieves the current key
-        key = va_arg(args, char *);
+        key = va_arg(args, char*);
 
         if (key == NULL) {
             break;
         }
 
         // Hashes the key
-        if((bucket = hm_hash(current_hm, key)) == HM_ERROR) {
+        if ((bucket = hm_hash(current_hm, key)) == HM_ERROR) {
             va_end(args);
             return HM_ERROR;
         }
@@ -386,7 +381,7 @@ int hm_search(hashmap_t *hashmap, void **value, ...) {
                 break;
             }
             node = node->next;
-        } while(node != NULL);
+        } while (node != NULL);
 
         if (node && node->value_type == HM_VALUE_MAP) {
             current_hm = node->value;
@@ -403,34 +398,34 @@ int hm_search(hashmap_t *hashmap, void **value, ...) {
     return HM_SUCCESS;
 }
 
-
 /**
  * @brief Inserts a value inside the hashmap.
  *
  * The function receives a variable number of keys as arguments.
- * If the key is not found inside the hashmap and it's not the last one, a new hashmap will be created and inserted.
- * If the key is not found inside the hashmap and it's the last one, the value will be inserted.
+ * If the key is not found inside the hashmap and it's not the last one, a new
+ * hashmap will be created and inserted. If the key is not found inside the
+ * hashmap and it's the last one, the value will be inserted.
  *
  * @param hashmap Pointer to the hashmap
  * @param value_type Value type
  * @param value Pointer to the value
  * @param ... Variable number of keys terminated by a NULL value
  */
-void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
+void hm_insert(hashmap_t* hashmap, node_value_t value_type, void* value, ...)
+{
     va_list args;
 
     int bucket = 0;
     double current_load_factor = 0;
 
-    node_t *node = NULL;
-    hashmap_t *aux_hm = NULL;
-    hashmap_t *current_hm = NULL;
+    node_t* node = NULL;
+    hashmap_t* current_hm = NULL;
 
     char* key = NULL;
     char* next_key = NULL;
 
     char* node_key = NULL;
-    char* node_val = NULL;
+    void* node_val = NULL;
 
     if (hashmap == NULL || hashmap->list == NULL) {
         return;
@@ -439,12 +434,12 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
     current_hm = hashmap;
 
     va_start(args, value);
-    key = va_arg(args, char *);
+    key = va_arg(args, char*);
 
-    while(key != NULL) {
+    while (key != NULL) {
         node_value_t node_type = HM_VALUE_MAP;
 
-        next_key = va_arg(args, char *);
+        next_key = va_arg(args, char*);
 
         if ((current_load_factor = hm_get_load_factor(current_hm)) == HM_ERROR) {
             return;
@@ -473,16 +468,12 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
             node = node->next;
         }
 
-
         if (node == NULL) {
             // Key not found inside current hashmap
             node_key = strdup(key);
 
             // If it's not the last one, create a new hashmap
-            if (
-                next_key != NULL
-                && ((node_val = hm_create_default()) == NULL)
-            ){
+            if (next_key != NULL && ((node_val = hm_create_default()) == NULL)) {
                 va_end(args);
                 free(node_key);
                 return;
@@ -500,7 +491,7 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
                 // If it's the last one, checks if it's a string
                 if (value_type == HM_VALUE_STR && node->value_type == HM_VALUE_STR) {
                     free(node->value);
-                    node->value = strdup((char *)value);
+                    node->value = strdup((char*)value);
                     continue;
                 }
             }
@@ -508,28 +499,20 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
 
         if (next_key == NULL) {
             switch (value_type) {
-                case HM_VALUE_STR:
-                    node_val = value ? strdup(value) : strdup("");
-                    break;
-                case HM_VALUE_MAP:
-                    node_val = value ? value : hm_create_default();
-                    break;
+            case HM_VALUE_STR:
+                node_val = value ? strdup(value) : strdup("");
+                break;
+            case HM_VALUE_MAP:
+                node_val = value ? value : hm_create_default();
+                break;
             }
 
             node_type = value_type;
         }
 
-        if (
-            node_key
-            && node_val
-        ){
+        if (node_key && node_val) {
 
-            node = hm_node_create(
-                node_key,
-                node_type,
-                node_val,
-                current_hm->list[bucket]
-            );
+            node = hm_node_create(node_key, node_type, node_val, current_hm->list[bucket]);
 
             current_hm->list[bucket] = node;
             current_hm->size++;
@@ -547,21 +530,21 @@ void hm_insert(hashmap_t *hashmap,  node_value_t value_type, void* value, ...) {
     va_end(args);
 }
 
-
 /**
  * @brief Serializes a hashmap into a JSON string
  *
  * @param hashmap Pointer to the hashmap
  * @return char* Heap allocated JSON string
  */
-char* hm_serialize(hashmap_t *hashmap) {
+char* hm_serialize(hashmap_t* hashmap)
+{
     if (hashmap == NULL || hashmap->list == NULL) {
         return NULL;
     }
 
     size_t buffer_size = 2; // For opening and closing braces
     size_t offset = 0;
-    char *serialized = malloc(buffer_size);
+    char* serialized = malloc(buffer_size);
     if (serialized == NULL) {
         return NULL;
     }
@@ -570,13 +553,13 @@ char* hm_serialize(hashmap_t *hashmap) {
 
     bool first_item = true;
     for (int i = 0; i < hashmap->capacity; i++) {
-        for (node_t *current = hashmap->list[i]; current != NULL; current = current->next) {
+        for (node_t* current = hashmap->list[i]; current != NULL; current = current->next) {
             if (!first_item) {
                 serialized[offset++] = ',';
                 buffer_size++;
             }
 
-            char *node_serialized = hm_serialize_node(current);
+            char* node_serialized = hm_serialize_node(current);
             if (node_serialized) {
                 size_t node_length = strlen(node_serialized);
                 if (offset + node_length >= buffer_size) {
@@ -601,14 +584,14 @@ char* hm_serialize(hashmap_t *hashmap) {
     return serialized;
 }
 
-
 /**
  * @brief  Serializes a node into a JSON string
  *
  * @param node Pointer to the node
  * @return char* Heap allocated JSON string
  */
-char* hm_serialize_node(node_t *node) {
+char* hm_serialize_node(node_t* node)
+{
     if (node == NULL) {
         return NULL;
     }
@@ -616,16 +599,16 @@ char* hm_serialize_node(node_t *node) {
     size_t key_len = strlen(node->key);
     size_t buffer_size = key_len + 4; // Key, quotes, colon
 
-    char *value_serialized = NULL;
+    char* value_serialized = NULL;
     if (node->value_type == HM_VALUE_STR) {
-        value_serialized = (char *)node->value;
+        value_serialized = (char*)node->value;
         buffer_size += strlen(value_serialized) + 2; // Value and quotes
     } else if (node->value_type == HM_VALUE_MAP) {
-        value_serialized = hm_serialize((hashmap_t *)node->value);
+        value_serialized = hm_serialize((hashmap_t*)node->value);
         buffer_size += value_serialized ? strlen(value_serialized) : 4; // Value or "null"
     }
 
-    char *serialized_node = malloc(buffer_size);
+    char* serialized_node = malloc(buffer_size);
     if (serialized_node == NULL) {
         free(value_serialized);
         return NULL;

@@ -7,6 +7,8 @@ define print
 	@echo -e "$(1)$(2)$(NC)"
 endef
 
+CLANG_CODE_STYLE='webkit'
+
 all: lib test
 
 run: clean test
@@ -21,9 +23,17 @@ test: lib
 	$(call print,$(GREEN),"Building test...")
 	@$(MAKE) -C test
 
-.PHONY: clean lib test
+.PHONY: clean lib test format
 
 clean:
 	$(call print,$(RED),"Cleaning up...")
 	@$(MAKE) -C src clean
 	@$(MAKE) -C test clean
+
+format:
+	$(call print,$(GREEN),"Formatting code...")
+	@FILES=$$(find . -type f \( -iname \*.c -o -iname \*.h \)); \
+	for FILE in $$FILES; do \
+		clang-format --style=$(CLANG_CODE_STYLE) -i "$$FILE"; \
+		echo -e "${GREEN}Formatted $$FILE${NC}"; \
+	done
