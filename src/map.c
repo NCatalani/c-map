@@ -109,12 +109,194 @@ void hm_node_free(void** node_p)
         case HM_VALUE_MAP:
             hm_free((void**)&node->value);
             break;
+        case HM_VALUE_LIST:
+            hm_list_free((void**)&node->value);
+            break;
         }
         node->value = NULL;
     }
 
     free(node);
     *node_p = NULL;
+}
+
+/**
+ * @brief Initializes a new list
+ *
+ * @return list_t* List
+ */
+list_t* hm_list_new(void)
+{
+    list_t* list = malloc(sizeof(list_t));
+
+    if (!list) {
+        return NULL;
+    }
+
+    list->items = NULL;
+    list->capacity = 0;
+    list->size = 0;
+
+    return list;
+}
+
+/**
+ * @brief Creates a new list with the given capacity
+ *
+ * @param capacity List capacity
+ * @return list_t* List
+ */
+list_t* hm_list_create(int capacity)
+{
+    list_t* list = hm_list_new();
+
+    if (!list) {
+        return NULL;
+    }
+
+    list->items = calloc(capacity, sizeof(node_t*));
+    list->capacity = capacity;
+
+    return list;
+}
+
+/**
+ * @brief Creates a new list with the default capacity
+ *
+ * @return list_t* List
+ */
+list_t* hm_list_create_default(void)
+{
+    return hm_list_create(HM_LIST_INITIAL_CAPACITY);
+}
+
+/**
+ * @brief Appends a node to the end of the list
+ *
+ * @param list List to receive the node
+ * @param node Node to be appended
+ */
+void hm_list_append(list_t* list, node_t* node)
+{
+    if (list == NULL || node == NULL || list->capacity == 0) {
+        return;
+    }
+
+    if (list->size == list->capacity) {
+        int new_capacity = HM_LIST_RESIZE_FACTOR * list->capacity;
+
+        node_t** new_items = realloc(list->items, new_capacity * sizeof(node_t*));
+        if (new_items == NULL) {
+            return;
+        }
+
+        list->items = new_items;
+        list->capacity = new_capacity;
+    }
+
+    list->items[list->size++] = node;
+}
+
+void hm_list_append_str(list_t* list, char* str)
+{
+    if (list == NULL || str == NULL) {
+        return;
+    }
+
+    char* aux = strdup(str);
+    if (aux == NULL) {
+        return;
+    }
+
+    node_t* node = hm_node_create(NULL, HM_VALUE_STR, aux, NULL);
+    if (node == NULL) {
+        free(aux);
+        return;
+    }
+
+    hm_list_append(list, node);
+}
+
+/**
+ * @brief Compares two nodes. Used for sorting.
+ *
+ * @param a Node A
+ * @param b Node B
+ * @return int
+ */
+int hm_node_compare(const void* a, const void* b)
+{
+    node_t* node_a = *(node_t**)a;
+    node_t* node_b = *(node_t**)b;
+
+    if (node_a->value_type == HM_VALUE_STR && node_b->value_type == HM_VALUE_STR) {
+        return strcmp((char*)node_a->value, (char*)node_b->value);
+    }
+    return 0;
+}
+
+/**
+ * @brief Checks if a list contains a given string
+ *
+ * @param list List to be searched
+ * @param str String to be searched
+ * @return int Status code (HM_SUCCESS, HM_NOT_FOUND or HM_ERROR)
+ */
+int hm_list_contains(list_t* list, char* str)
+{
+    node_t* node = NULL;
+
+    if (list == NULL || str == NULL || list->capacity == 0) {
+        return HM_ERROR;
+    }
+
+    // Divide and conquer search to make function O(log n)
+    if (list->items != NULL) {
+        qsort(list->items, list->size, sizeof(node_t*), hm_node_compare);
+    }
+
+    int left = 0;
+    int right = list->size - 1;
+
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+
+        node = list->items[mid];
+
+        if (node->value_type != HM_VALUE_STR) {
+            continue;
+        }
+
+        int cmp = strcmp(str, (char*)node->value);
+        if (cmp == 0) {
+            return HM_SUCCESS;
+        } else if (cmp < 0) {
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+
+    return HM_NOT_FOUND;
+}
+
+void hm_list_free(void** list_p)
+{
+    if (list_p == NULL || *list_p == NULL) {
+        return;
+    }
+
+    list_t* list = *(list_t**)list_p;
+
+    for (int i = 0; i < list->size; i++) {
+        hm_node_free((void**)&list->items[i]);
+    }
+
+    free(list->items);
+    list->items = NULL;
+
+    free(list);
+    *list_p = NULL;
 }
 
 /**
@@ -399,7 +581,7 @@ int hm_search(hashmap_t* hashmap, void** value, ...)
 }
 
 /**
- * @brief Inserts a value inside the hashmap.
+ * @brief Inserts a value into the hashmap.
  *
  * The function receives a variable number of keys as arguments.
  * If the key is not found inside the hashmap and it's not the last one, a new
@@ -504,6 +686,9 @@ void hm_insert(hashmap_t* hashmap, node_value_t value_type, void* value, ...)
                 break;
             case HM_VALUE_MAP:
                 node_val = value ? value : hm_create_default();
+                break;
+            case HM_VALUE_LIST:
+                node_val = value ? value : hm_list_create_default();
                 break;
             }
 
