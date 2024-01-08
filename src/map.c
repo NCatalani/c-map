@@ -197,6 +197,13 @@ void hm_list_append(list_t* list, node_t* node)
     list->items[list->size++] = node;
 }
 
+/**
+ * @brief Appends a node of type HM_VALUE_STR to the list
+ * with the given string as its value.
+ *
+ * @param list List to append the str
+ * @param str String
+ */
 void hm_list_append_str(list_t* list, char* str)
 {
     if (list == NULL || str == NULL) {
